@@ -10,7 +10,9 @@
 #define VIPMAXLEVEL 8
 
 int g_player[MAXPLAYERS+1][VIP];
-int g_ilevel[VIPMAXLEVEL];
+
+// We haven't level 0 ;)
+int g_ilevel[VIPMAXLEVEL+1];
 
 bool g_bready = false;
 
