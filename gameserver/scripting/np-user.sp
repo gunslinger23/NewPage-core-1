@@ -161,6 +161,11 @@ public void OnClientConnected(int client)
     g_iUserId[client] = 0;
 }
 
+public void OnClientDisconnect(int client)
+{
+    UpdateClientLastseen(client);
+}
+
 // we call this forward after client is fully in-game.
 // this forward -> tell other plugins, we are available, allow to load client`s data.
 public void OnClientPutInServer(int client)
@@ -310,6 +315,7 @@ void LoadClientAuth(int client, const char[] steamid)
     char m_szQuery[256];
     FormatEx(m_szQuery, 256, "SELECT uid, username, imm, spt, vip, ctb, opt, adm, own FROM %s_users WHERE steamid = '%s'", P_SQLPRE, steamid);
     db.Query(LoadClientCallback, m_szQuery, GetClientUserId(client));
+    UpdateClientName(client, steamid);
 }
 
 void CheckClientBanStats(int client, const char[] steamid)
@@ -327,7 +333,7 @@ void CheckClientBanStats(int client, const char[] steamid)
     Database db = NP_MySQL_GetDatabase();
 
     char m_szQuery[256];
-    FormatEx(m_szQuery, 256, "SELECT bType, bSrv, bSrvMod, bCreated, bLength, bReason, id FROM dxg_bans WHERE steamid = '%s' AND bRemovedBy = -1", steamid);
+    FormatEx(m_szQuery, 256, "SELECT bType, bSrv, bSrvMod, bCreated, bLength, bReason, id FROM %s_bans WHERE steamid = '%s' AND bRemovedBy = -1", P_SQLPRE, steamid);
     db.Query(CheckBanCallback, m_szQuery, GetClientUserId(client));
 }
 
@@ -487,7 +493,7 @@ public void CheckBanCallback(Database db, DBResultSet results, const char[] erro
         GetClientIP(client, ip, 32);
          
         char m_szQuery[256];
-        FormatEx(m_szQuery, 256, "INSERT INTO dxg_blocks VALUES (DEFAULT, %d, '%s', %d)", results.FetchInt(6), ip, GetTime());
+        FormatEx(m_szQuery, 256, "INSERT INTO %s_blocks VALUES (DEFAULT, %d, '%s', %d)", P_SQLPRE, results.FetchInt(6), ip, GetTime());
         NP_MySQL_SaveDatabase(m_szQuery);
 
         char timeExpired[64];
@@ -571,4 +577,40 @@ void CallDataForward(int client)
     Call_PushCell(client);
     Call_PushCell(g_iUserId[client]);
     Call_Finish();
+}
+
+void UpdateClientName(int client, const char[] steamid)
+{
+    if(!NP_MySQL_IsConnected())
+    {
+        NP_Core_LogError("User", "UpdateClientName", "Error: SQL is unavailable");
+        return;
+    }
+
+    char name[32];
+    GetClientName(client, name, 32);
+
+    char m_szQuery[256];
+    FormatEx(m_szQuery, 256, "UPDATE %s_users SET username = '%s' WHERE steamid = '%s'", P_SQLPRE, name, steamid);
+    NP_MySQL_SaveDatabase(m_szQuery);
+}
+
+void UpdateClientLastseen(int client)
+{
+    if(!NP_MySQL_IsConnected())
+    {
+        NP_Core_LogError("User", "UpdateClientLastseen", "Error: SQL is unavailable");
+        return;
+    }
+
+    char steamid[32];
+    if(!GetClientAuthId(client, AuthId_SteamID64, steamid, 32, true))
+    {
+        NP_Core_LogMessage("User", "UpdateClientLastseen", "Error: We can not verify client`s SteamId64 -> \"%L\"", client);
+        return;
+    }
+
+    char m_szQuery[256];
+    FormatEx(m_szQuery, 256, "UPDATE %s_users SET lastseen = '%i' WHERE steamid = '%s'", P_SQLPRE, GetTime(), steamid);
+    NP_MySQL_SaveDatabase(m_szQuery);
 }
