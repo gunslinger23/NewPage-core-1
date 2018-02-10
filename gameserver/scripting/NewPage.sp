@@ -231,15 +231,15 @@ public void OnConnected(Database db, const char[] error, int retry)
     g_hSQL = db;
     g_hSQL.SetCharset("utf8mb4"); //Support special UTF8 characters
     g_bConnected = true;
+
+    // parse data
+    CheckingServer();
     
     PrintToServer("Database Connected!");
     
     Call_StartForward(g_hOnConnected);
     Call_PushCell(g_hSQL);
     Call_Finish();
-    
-    // parse data
-    CheckingServer();
 }
 
 public Action Timer_Reconnect(Handle timer, int retry)
@@ -270,7 +270,7 @@ void CheckingServer()
     {
         char error[256];
         SQL_GetError(g_hSQL, error, 256);
-        NP_Core_LogError("MySQL", "CheckingServer", "SQL Error: %s", error);
+        NP_Core_LogError("MySQL", "CheckingServer", "Query Server Info: %s", error);
         RetrieveInfoFromKV();
         return;
     }
@@ -305,7 +305,12 @@ void CheckingServer()
 
     // sync to database
     FormatEx(m_szQuery, 128, "UPDATE `%s_servers` SET `rcon`='%s' WHERE `sid`='%d';", P_SQLPRE, g_szRconPswd, g_iServerId);
-    NP_MySQL_SaveDatabase(m_szQuery);
+    if(!SQL_FastQuery(g_hMySQL, m_szQuery, 128))
+    {
+        char error[256];
+        SQL_GetError(g_hMySQL, error, 256);
+        NP_Core_LogError("MySQL", "CheckingServer", "Update RCon password: %s", error); 
+    }
 
     Call_StartForward(g_hOnAvailable);
     Call_PushCell(g_iServerId);
