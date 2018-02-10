@@ -7,7 +7,7 @@
 enum VIP
 {
     Isvip = 0,  //IsVIP
-    Point = 0,  //VIP_pont
+    Point = 0,  //VIP_point
     Level = 0,  //VIP_level
 }
 
