@@ -1,0 +1,53 @@
+"Phrases"
+{
+	"Permanent ban"
+	{
+		"en"		"Permanent ban"
+		"chi"		"永久封禁"
+	}
+
+	"Blocking information"
+	{
+		"#format"	"{1:s},{2:s},{3:s},{4:s}"
+		"en"		"You have been ban by the server!\nType: {1}\nReason: {2}\nExpired: {3}\nVisit {4} for details"
+		"chi"		"您已被服务器封锁,禁止进入游戏!\n类型: {1}\n原因: {2}\n到期: {3}\n访问 {4} 查看详细信息"
+	}
+
+	"Ban by admin message"
+	{
+		"#format"	"{1:s},{2:s},{3:s}"
+		"en"		" \07*** \x02BAN \07***  \x05{1}\01has been ban by\x04{2}\x01,nReason: \x0A{3}"
+		"chi"		" \07*** \x02BAN \07***  \x05{1}\01已被管理员\x04{2}\x01封锁,原因: \x0A{3}"
+	}
+
+	"Ban by server message"
+	{
+		"#format"	"{1:s}"
+		"en"		" \07*** \x02BAN \07***  \x05{1}\x04has been ban by server!"
+		"chi"		" \07*** \x02BAN \07***  \x05{1}\x04已被服服器封锁!"
+	}
+
+	"System cant find you steamid"
+	{
+		"en"		"We can't get your STEAMID"
+		"chi"		"我们无法获取您的STEAMID"
+	}
+
+	"Ban type 0"
+	{
+		"en"		"All server"
+		"chi"		"全服封禁"
+	}
+
+	"Ban type 1"
+	{
+		"en"		"Only this mode"
+		"chi"		"当前模式封禁"
+	}
+
+	"Ban type 2"
+	{
+		"en"		"Only this server"
+		"chi"		"当前服务器封禁"
+	}
+}
