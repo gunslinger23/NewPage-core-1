@@ -597,6 +597,9 @@ void UpdateClientName(int client, const char[] steamid)
 
 void UpdateClientLastseen(int client)
 {
+    if(!IsValidClient(client))
+        return;
+
     if(!NP_MySQL_IsConnected())
     {
         NP_Core_LogError("User", "UpdateClientLastseen", "Error: SQL is unavailable");
