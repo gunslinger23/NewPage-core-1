@@ -74,11 +74,17 @@ public int Native_AddVipPoint(Handle plugin, int numParams)
 public void OnPluginStart()
 {
     // nothing ;)
+}
+
+public void NP_Core_OnAvailable(int serverId, int modId)
+{
     GetLevelINF();
 }
 
-public void OnClientConnected(int client)
+public void OnClientDataChecked(int client, bool Spt, int Vip, bool Ctb, bool Opt, bool Adm, bool Own)
 {
+    if(Vip <= 0)
+        return;
     CheckVip(client);
 }
 
