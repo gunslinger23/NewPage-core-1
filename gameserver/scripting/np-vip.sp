@@ -5,7 +5,7 @@
 #include <NewPage/vip>
 
 #define P_NAME P_PRE ... " - Vip"
-#define P_DESC "API of Vip"
+#define P_DESC "Vip"
 
 #define VIPMAXLEVEL 8
 
