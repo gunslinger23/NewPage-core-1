@@ -305,10 +305,10 @@ void CheckingServer()
 
     // sync to database
     FormatEx(m_szQuery, 128, "UPDATE `%s_servers` SET `rcon`='%s' WHERE `sid`='%d';", P_SQLPRE, g_szRconPswd, g_iServerId);
-    if(!SQL_FastQuery(g_hMySQL, m_szQuery, 128))
+    if(!SQL_FastQuery(g_hSQL, m_szQuery, 128))
     {
         char error[256];
-        SQL_GetError(g_hMySQL, error, 256);
+        SQL_GetError(g_hSQL, error, 256);
         NP_Core_LogError("MySQL", "CheckingServer", "Update RCon password: %s", error); 
     }
 

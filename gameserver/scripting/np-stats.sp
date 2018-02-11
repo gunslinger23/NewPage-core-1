@@ -155,9 +155,11 @@ public void OnClientDisconnect(int client)
 
     if(g_iTrackingId[client] <= 0)
         return;
-    
-    char m_szQuery[512];
-    FormatEx(m_szQuery, 512, "UPDATE %s_stats AS a, %s_analytics AS b SET a.connectTimes=a.connectTimes+1, a.onlineToday=a.onlineToday+%d, a.onlineTotal=a.onlineTotal+%d, a.onlineOB=a.onlineOB+%d, a.onlinePlay=a.onlinePlay+%d, b.duration=%d WHERE a.uid=%d AND b.id=%d", P_SQLPRE, P_SQLPRE, g_StatsClient[client][STATS_SESSION][iTodayOnlineTime], g_StatsClient[client][STATS_SESSION][iTotalOnlineTime], g_StatsClient[client][STATS_SESSION][iObserveOnlineTime], g_StatsClient[client][STATS_SESSION][iPlayOnlineTime], g_StatsClient[client][STATS_SESSION][iTotalOnlineTime], NP_Users_UserIdentity(client), g_iTrackingId[client]);
+
+    char m_szQuery[256], m_szUsername[32], m_szEscape[64];
+    GetClientName(client, m_szUsername, 32);
+    NP_MySQL_GetDatabase().Escape(m_szUsername, m_szEscape, 64);
+    FormatEx(m_szQuery, 256, "CALL user_stats (%d, %d, %d, %d, %d, %d, '%s')", NP_Users_UserIdentity(client), g_iTrackingId[client], g_StatsClient[client][STATS_SESSION][iTodayOnlineTime], g_StatsClient[client][STATS_SESSION][iTotalOnlineTime], g_StatsClient[client][STATS_SESSION][iObserveOnlineTime], g_StatsClient[client][STATS_SESSION][iPlayOnlineTime], m_szEscape);
     NP_MySQL_SaveDatabase(m_szQuery);
 }
 
