@@ -6,9 +6,9 @@
 
 enum VIP
 {
-    Isvip = 0,  //IsVIP
-    Point = 0,  //VIP_point
-    Level = 0,  //VIP_level
+    Isvip,  //IsVIP
+    Point,  //VIP_point
+    Level,  //VIP_level
 }
 
 native bool NP_Vip_ClientIsVip(int client);

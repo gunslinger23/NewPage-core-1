@@ -2,6 +2,7 @@
 #pragma newdecls required
 
 #include <NewPage>
+#include <NewPage/user>
 #include <NewPage/vip>
 
 #define P_NAME P_PRE ... " - Vip"
@@ -81,30 +82,15 @@ public void NP_Core_OnAvailable(int serverId, int modId)
     GetLevelINF();
 }
 
-public void OnClientDataChecked(int client, bool Spt, int Vip, bool Ctb, bool Opt, bool Adm, bool Own)
+public void OnClientDataChecked(int client, int uid)
 {
-    if(Vip <= 0)
+    if(!IsValidClient(client))
         return;
-    CheckVip(client);
-}
 
-public void OnClientDisconnect(int client)
-{
     g_player[client][Isvip] = 0;
     g_player[client][Level] = 0;
     g_player[client][Point] = 0;
-}
-
-
-void CheckVip(int client)
-{
-    char steamid[32];
-    if(!GetClientAuthId(client, AuthId_SteamID64, steamid, 32, true))
-    {
-        NP_Core_LogMessage("Vip", "CheckVip", "Error: We can not verify client`s SteamId64 -> \"%L\"", client);
-        return;
-    }
-
+    
     if(!NP_MySQL_IsConnected())
     {
         NP_Core_LogError("Vip", "CheckVip", "Error: SQL is unavailable -> \"%L\"", client);
@@ -115,8 +101,15 @@ void CheckVip(int client)
     Database db = NP_MySQL_GetDatabase();
 
     char m_szQuery[256];
-    FormatEx(m_szQuery, 256, "SELECT vip, vippoint FROM %s_users WHERE steamid = '%s'", P_SQLPRE, steamid);
+    FormatEx(m_szQuery, 256, "CALL user_getvip (%d)", uid);
     db.Query(CheckVipCallback, m_szQuery, GetClientUserId(client));
+}
+
+public void OnClientDisconnect(int client)
+{
+    g_player[client][Isvip] = 0;
+    g_player[client][Level] = 0;
+    g_player[client][Point] = 0;
 }
 
 public void CheckVipCallback(Database db, DBResultSet results, const char[] error, int userid)
@@ -127,61 +120,36 @@ public void CheckVipCallback(Database db, DBResultSet results, const char[] erro
 
     if(results == null || error[0])
     {
-        NP_Core_LogError("Vip", "CheckVip", "SQL Error:  %s -> \"%L\"", error, client);
+        NP_Core_LogError("Vip", "CheckVipCallback", "SQL Error:  %s -> \"%L\"", error, client);
         CreateTimer(5.0, Timer_ReCheckVIP, client, TIMER_FLAG_NO_MAPCHANGE);
         return;
     }
 
-    if(results.RowCount <= 0)
-        return;
-
-    while(results.FetchRow())
+    if(results.RowCount <= 0 || !results.FetchRow())
     {
-        // vip, vippoint
-        int time = results.FetchInt(0);
-        int vippoint = results.FetchInt(1);
-
-        /* process results */
-        
-        // if player have not vip
-        if(time <= 0)
-            return;
-
-        // if player's vip hasn't expired
-        char t_ntime[8], t_ltime[8];
-        FormatTime(t_ntime, 10, "%Y%m%d", GetTime());
-        FormatTime(t_ltime, 10, "%Y%m%d", time);
-
-        if(StringToInt(t_ntime) <= StringToInt(t_ltime))
-        {
-            g_player[client][Isvip] = 1;
-            g_player[client][Point] = vippoint;
-            g_player[client][Level] = GetLevel(vippoint);
-        }
-
-        break;
+        NP_Core_LogError("MySQL", "CheckVip", "Not Found the result -> \"%L\"", client);
+        SetFailState("Not Found the vip result");
+        return;
     }
+
+    g_player[client][Isvip] = results.FetchInt(0);
+    g_player[client][Point] = results.FetchInt(1);
+
+    g_player[client][Level] = GetLevel(g_player[client][Point]);
 }
 
 public Action Timer_ReCheckVIP(Handle timer, int client)
 {
-    if(!IsClientConnected(client))
+    if(!IsClientInGame(client))
         return Plugin_Stop;
 
-    CheckVip(client);
+    OnClientDataChecked(client, NP_Users_UserIdentity(client));
     
     return Plugin_Stop;
 }
 
 void GrantVip(int client, int duration)
 {
-    char steamid[32];
-    if(!GetClientAuthId(client, AuthId_SteamID64, steamid, 32, true))
-    {
-        NP_Core_LogMessage("Vip", "GrantVip", "Error: We can not verify client`s SteamId64 -> \"%L\"", client);
-        return;
-    }
-
     if(!NP_MySQL_IsConnected())
     {
         NP_Core_LogError("Vip", "GrantVip", "Error: SQL is unavailable -> \"%L\"", client);
@@ -189,7 +157,7 @@ void GrantVip(int client, int duration)
     }
 
     char m_szQuery[256];
-    FormatEx(m_szQuery, 256, "UPDATE %s_users SET vip = '%i' WHERE steamid = '%s'", P_SQLPRE, GetTime()+duration*86400, steamid);
+    FormatEx(m_szQuery, 256, "UPDATE %s_users SET vipexpired = '%d' WHERE uid = '%d'", P_SQLPRE, GetTime()+duration*86400, NP_Users_UserIdentity(client));
     NP_MySQL_SaveDatabase(m_szQuery);
 }
 
@@ -199,13 +167,6 @@ void DeleteVip(int client)
     if(!g_player[client][Isvip])
         return;
 
-    char steamid[32];
-    if(!GetClientAuthId(client, AuthId_SteamID64, steamid, 32, true))
-    {
-        NP_Core_LogMessage("Vip", "DeleteVip", "Error: We can not verify client`s SteamId64 -> \"%L\"", client);
-        return;
-    }
-
     if(!NP_MySQL_IsConnected())
     {
         NP_Core_LogError("Vip", "GrantVip", "Error: SQL is unavailable -> \"%L\"", client);
@@ -213,7 +174,7 @@ void DeleteVip(int client)
     }
 
     char m_szQuery[256];
-    FormatEx(m_szQuery, 256, "UPDATE %s_users SET vip = '%i' WHERE steamid = '%s'", P_SQLPRE, GetTime()-86400, steamid);
+    FormatEx(m_szQuery, 256, "UPDATE %s_users SET vipexpired = '%d' WHERE uid = '%d'", P_SQLPRE, 0, NP_Users_UserIdentity(client));
     NP_MySQL_SaveDatabase(m_szQuery);
 }
 
@@ -223,13 +184,6 @@ void AddVipPoint(int client, int point)
     if(!g_player[client][Isvip])
         return;
 
-    char steamid[32];
-    if(!GetClientAuthId(client, AuthId_SteamID64, steamid, 32, true))
-    {
-        NP_Core_LogMessage("Vip", "AddVipPoint", "Error: We can not verify client`s SteamId64 -> \"%L\"", client);
-        return;
-    }
-
     if(!NP_MySQL_IsConnected())
     {
         NP_Core_LogError("Vip", "GrantVip", "Error: SQL is unavailable -> \"%L\"", client);
@@ -237,7 +191,7 @@ void AddVipPoint(int client, int point)
     }
 
     char m_szQuery[256];
-    FormatEx(m_szQuery, 256, "UPDATE %s_users SET vippoint = '%i' WHERE steamid = '%s'", P_SQLPRE, g_player[client][Point] + point, steamid);
+    FormatEx(m_szQuery, 256, "UPDATE %s_users SET vippoint = '%d' WHERE uid = '%d'", P_SQLPRE, g_player[client][Point] + point, NP_Users_UserIdentity(client));
     NP_MySQL_SaveDatabase(m_szQuery);
 }
 
@@ -249,9 +203,15 @@ int GetLevel(int point)
         return 0;
     }
 
-    int level = 0;
-    while(point > g_ilevel[0])
-        level++;
+    int level = 1;
+    while(point > g_ilevel[level])
+    {
+        if(level < VIPMAXLEVEL)
+            level++;
+        else
+            break;
+    }
+
     return level;
 }
 
