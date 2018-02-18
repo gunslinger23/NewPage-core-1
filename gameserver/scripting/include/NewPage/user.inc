@@ -6,6 +6,8 @@
 
 #define _NewPage_User_Manager_Include_
 
+#define VIPMAXLEVEL 8
+
 enum Authentication
 {
     Spt,  //Supporter
@@ -19,7 +21,9 @@ enum Authentication
 
 forward void OnClientAuthChecked(int client, bool Spt, bool Vip, bool Ctb, bool Opt, bool Adm, bool Own);
 forward void OnClientDataChecked(int client, int UserIdentity);
-native int  NP_Users_UserIdentity(int client);
+native int NP_Users_UserIdentity(int client);
+native int NP_Users_VIPLevel(int client);
+native bool NP_Users_IsVIP(int client);
 native bool NP_Users_IsAuthorized(int client, Authentication auth);
 native void NP_Users_BanClient(int admin,  int target, int banType, int banLength, const char[] banReason);
 native void NP_Users_BanIdentity(int admin, const char[] steamIdentity, int banType, int banLength, const char[] banReason);

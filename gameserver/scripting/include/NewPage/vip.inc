@@ -4,18 +4,8 @@
 
 #define _NewPage_Vip_Include_
 
-enum VIP
-{
-    Isvip,  //IsVIP
-    Point,  //VIP_point
-    Level,  //VIP_level
-}
-
-native bool NP_Vip_ClientIsVip(int client);
 native void NP_Vip_GrantVip(int client, int duration);
 native void NP_Vip_DeleteVip(int client);
-native int NP_Vip_GetVipLevel(int client);
-native int NP_Vip_GetVipPoint(int client);
 native void NP_Vip_AddVipPoint(int client, int point);
 
 public SharedPlugin __pl_np_vip =

@@ -17,6 +17,7 @@ public Plugin myinfo =
 };
 
 int  g_iUserId[MAXPLAYERS+1];
+int g_ivipLevel[MAXPLAYERS+1];
 bool g_authClient[MAXPLAYERS+1][Authentication];
 bool g_bAuthLoaded[MAXPLAYERS+1];
 bool g_bBanChecked[MAXPLAYERS+1];
@@ -36,6 +37,10 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
     // Banning
     CreateNative("NP_Users_BanClient",    Native_BanClient);
     CreateNative("NP_Users_BanIdentity",  Native_BanIdentity);
+
+    // Vip
+    CreateNative("NP_Users_IsVIP", Native_IsVIP);
+    CreateNative("NP_Users_VIPLevel", Native_VIPLevel);
     
     // lib
     RegPluginLibrary("np-user");
@@ -43,16 +48,30 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
     return APLRes_Success;
 }
 
+// Vip
+public int Native_IsVIP(Handle plugin, int numParams)
+{
+    return g_authClient[GetNativeCell(1)][Vip];
+}
+
+public int Native_VIPLevel(Handle plugin, int numParams)
+{
+    return g_ivipLevel[GetNativeCell(1)];
+}
+
+// Auth
 public int Native_IsAuthorized(Handle plugin, int numParams)
 {
     return g_authClient[GetNativeCell(1)][GetNativeCell(2)];
 }
 
+// Identity
 public int Native_UserIdentity(Handle plugin, int numParams)
 {
     return g_iUserId[GetNativeCell(1)];
 }
 
+// Banning
 public int Native_BanClient(Handle plugin, int numParams)
 {
     int admin  = GetNativeCell(1);
@@ -306,10 +325,36 @@ void LoadClientAuth(int client, const char[] steamid)
     }
 
     Database db = NP_MySQL_GetDatabase();
-    
+
     char m_szQuery[256];
+    FormatEx(m_szQuery, 256, "CALL user_loadvip (%d)", NP_Users_UserIdentity(client));
+    db.Query(LoadVIPCallback, m_szQuery, GetClientUserId(client));
+    
     FormatEx(m_szQuery, 256, "SELECT uid, username, imm, spt, vip, ctb, opt, adm, own FROM %s_users WHERE steamid = '%s'", P_SQLPRE, steamid);
     db.Query(LoadClientCallback, m_szQuery, GetClientUserId(client));
+}
+
+public void LoadVIPCallback(Database db, DBResultSet results, const char[] error, int userid)
+{
+    int client = GetClientOfUserId(userid);
+    if(!client)
+        return;
+
+    if(results == null || error[0])
+    {
+        NP_Core_LogError("User", "LoadVIPCallback", "SQL Error:  %s -> \"%L\"", error, client);
+        CreateTimer(5.0, Timer_ReAuthorize, client, TIMER_FLAG_NO_MAPCHANGE);
+        return;
+    }
+    
+    if(results.RowCount <= 0 || !results.FetchRow())
+    {
+        InsertNewUserData(client);
+        CallAuthForward(client);
+        return;
+    }
+
+    g_ivipLevel[client] = results.FetchInt(0);
 }
 
 void CheckClientBanStats(int client, const char[] steamid)
@@ -402,6 +447,24 @@ public void LoadClientCallback(Database db, DBResultSet results, const char[] er
                 }
             }
         }
+
+        // we give admin perm before client admin check
+        if(IsClientInGame(client))
+            RunAdminCacheChecks(client);
+    }
+    else if(g_authClient[client][Vip])
+    {
+        AdminId _admin = GetUserAdmin(client);
+        if(_admin != INVALID_ADMIN_ID)
+        {
+            RemoveAdmin(_admin);
+            SetUserAdmin(client, INVALID_ADMIN_ID);
+        }
+
+        _admin = CreateAdmin(g_szUsername[client]);
+        SetUserAdmin(client, _admin, true);
+
+        _admin.SetFlag(Admin_Reservation, true);
 
         // we give admin perm before client admin check
         if(IsClientInGame(client))

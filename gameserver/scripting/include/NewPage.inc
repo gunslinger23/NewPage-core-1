@@ -1,5 +1,5 @@
 #define P_AUTHOR "MagicGirl.NET Dev Team & NewPage Team"
-#define P_VERSION "Alpha-1.1"
+#define P_VERSION "Alpha-1.2"
 #define P_URLS "https://new-page.cc"
 #define P_PRE "NewPage"
 #define P_SQLPRE "NP"

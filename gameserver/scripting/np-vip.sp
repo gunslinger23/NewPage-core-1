@@ -5,17 +5,8 @@
 #include <NewPage/user>
 #include <NewPage/vip>
 
-#define P_NAME P_PRE ... " - Vip"
-#define P_DESC "Vip"
-
-#define VIPMAXLEVEL 8
-
-int g_player[MAXPLAYERS+1][VIP];
-
-// We haven't level 0 ;)
-int g_ilevel[VIPMAXLEVEL+1];
-
-bool g_bready = false;
+#define P_NAME P_PRE ... " - VIP"
+#define P_DESC "API of VIP"
 
 public Plugin myinfo = 
 {
@@ -28,23 +19,14 @@ public Plugin myinfo =
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
-    CreateNative("NP_Vip_ClientIsVip", Native_ClientIsVip);
     CreateNative("NP_Vip_GrantVip", Native_GrantVip);
     CreateNative("NP_Vip_DeleteVip", Native_DeleteVip);
-    CreateNative("NP_Vip_GetVipLevel", Native_GetVipLevel);
-    CreateNative("NP_Vip_GetVipPoint", Native_GetVipPoint);
     CreateNative("NP_Vip_AddVipPoint", Native_AddVipPoint);
-
     
     // lib
     RegPluginLibrary("np-vip");
 
     return APLRes_Success;
-}
-
-public int Native_ClientIsVip(Handle plugin, int numParams)
-{
-    return g_player[GetNativeCell(1)][Isvip];
 }
 
 public int Native_GrantVip(Handle plugin, int numParams)
@@ -57,16 +39,6 @@ public int Native_DeleteVip(Handle plugin, int numParams)
     DeleteVip(GetNativeCell(1));
 }
 
-public int Native_GetVipLevel(Handle plugin, int numParams)
-{
-    return g_player[GetNativeCell(1)][Level];
-}
-
-public int Native_GetVipPoint(Handle plugin, int numParams)
-{
-    return g_player[GetNativeCell(1)][Point];
-}
-
 public int Native_AddVipPoint(Handle plugin, int numParams)
 {
     AddVipPoint(GetNativeCell(1), GetNativeCell(2));
@@ -75,77 +47,6 @@ public int Native_AddVipPoint(Handle plugin, int numParams)
 public void OnPluginStart()
 {
     // nothing ;)
-}
-
-public void NP_Core_OnAvailable(int serverId, int modId)
-{
-    GetLevelINF();
-}
-
-public void OnClientDataChecked(int client, int uid)
-{
-    if(!IsValidClient(client))
-        return;
-
-    g_player[client][Isvip] = 0;
-    g_player[client][Level] = 0;
-    g_player[client][Point] = 0;
-    
-    if(!NP_MySQL_IsConnected())
-    {
-        NP_Core_LogError("Vip", "CheckVip", "Error: SQL is unavailable -> \"%L\"", client);
-        CreateTimer(5.0, Timer_ReCheckVIP, client, TIMER_FLAG_NO_MAPCHANGE);
-        return;
-    }
-
-    Database db = NP_MySQL_GetDatabase();
-
-    char m_szQuery[256];
-    FormatEx(m_szQuery, 256, "CALL user_getvip (%d)", uid);
-    db.Query(CheckVipCallback, m_szQuery, GetClientUserId(client));
-}
-
-public void OnClientDisconnect(int client)
-{
-    g_player[client][Isvip] = 0;
-    g_player[client][Level] = 0;
-    g_player[client][Point] = 0;
-}
-
-public void CheckVipCallback(Database db, DBResultSet results, const char[] error, int userid)
-{
-    int client = GetClientOfUserId(userid);
-    if(!client)
-        return;
-
-    if(results == null || error[0])
-    {
-        NP_Core_LogError("Vip", "CheckVipCallback", "SQL Error:  %s -> \"%L\"", error, client);
-        CreateTimer(5.0, Timer_ReCheckVIP, client, TIMER_FLAG_NO_MAPCHANGE);
-        return;
-    }
-
-    if(results.RowCount <= 0 || !results.FetchRow())
-    {
-        NP_Core_LogError("MySQL", "CheckVip", "Not Found the result -> \"%L\"", client);
-        SetFailState("Not Found the vip result");
-        return;
-    }
-
-    g_player[client][Isvip] = results.FetchInt(0);
-    g_player[client][Point] = results.FetchInt(1);
-
-    g_player[client][Level] = GetLevel(g_player[client][Point]);
-}
-
-public Action Timer_ReCheckVIP(Handle timer, int client)
-{
-    if(!IsClientInGame(client))
-        return Plugin_Stop;
-
-    OnClientDataChecked(client, NP_Users_UserIdentity(client));
-    
-    return Plugin_Stop;
 }
 
 void GrantVip(int client, int duration)
@@ -193,68 +94,4 @@ void AddVipPoint(int client, int point)
     char m_szQuery[256];
     FormatEx(m_szQuery, 256, "UPDATE %s_users SET vippoint = '%d' WHERE uid = '%d'", P_SQLPRE, g_player[client][Point] + point, NP_Users_UserIdentity(client));
     NP_MySQL_SaveDatabase(m_szQuery);
-}
-
-int GetLevel(int point)
-{
-    if(!g_bready)
-    {
-        NP_Core_LogError("Vip", "GetLevelINF", "Error: Cant get vip level");
-        return 0;
-    }
-
-    int level = 1;
-    while(point > g_ilevel[level])
-    {
-        if(level < VIPMAXLEVEL)
-            level++;
-        else
-            break;
-    }
-
-    return level;
-}
-
-void GetLevelINF()
-{
-    if(!NP_MySQL_IsConnected())
-    {
-        NP_Core_LogError("Vip", "GetLevelINF", "Error: SQL is unavailable");
-        CreateTimer(5.0, Timer_ReGetLevelINF, 0, TIMER_FLAG_NO_MAPCHANGE);
-        return ;
-    }
-
-    Database db = NP_MySQL_GetDatabase();
-    
-    char m_szQuery[256];
-    FormatEx(m_szQuery, 256, "SELECT level, point FROM %s_viplevel", P_SQLPRE);
-    db.Query(GetLevelINFCallback, m_szQuery, 0);
-}
-
-public Action Timer_ReGetLevelINF(Handle timer, int data)
-{
-    GetLevelINF();
-    return Plugin_Stop;
-}
-
-public void GetLevelINFCallback(Database db, DBResultSet results, const char[] error, int data)
-{
-    if(results == null || error[0])
-    {
-        NP_Core_LogError("Vip", "GetLevelINF", "SQL Error:  %s", error);
-        CreateTimer(5.0, Timer_ReGetLevelINF, 0, TIMER_FLAG_NO_MAPCHANGE);
-        return;
-    }
-
-    if(results.RowCount <= 0)
-        return;
-
-    while(results.FetchRow())
-    {
-        // level, point
-        int level = results.FetchInt(0);
-        int point = results.FetchInt(1);
-        g_ilevel[level] = point;
-    }
-    g_bready = true;
 }
