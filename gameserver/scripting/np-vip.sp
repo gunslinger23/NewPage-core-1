@@ -65,7 +65,7 @@ void GrantVip(int client, int duration)
 void DeleteVip(int client)
 {
     //if player isn's vip
-    if(!g_player[client][Isvip])
+    if(!NP_Users_IsVIP(client))
         return;
 
     if(!NP_MySQL_IsConnected())
@@ -82,7 +82,7 @@ void DeleteVip(int client)
 void AddVipPoint(int client, int point)
 {
     //if player isn's vip
-    if(!g_player[client][Isvip])
+    if(!NP_Users_IsVIP(client))
         return;
 
     if(!NP_MySQL_IsConnected())
@@ -92,6 +92,6 @@ void AddVipPoint(int client, int point)
     }
 
     char m_szQuery[256];
-    FormatEx(m_szQuery, 256, "UPDATE %s_users SET vippoint = '%d' WHERE uid = '%d'", P_SQLPRE, g_player[client][Point] + point, NP_Users_UserIdentity(client));
+    FormatEx(m_szQuery, 256, "UPDATE %s_users SET vippoint = vippoint + '%d' WHERE uid = '%d'", P_SQLPRE, point, NP_Users_UserIdentity(client));
     NP_MySQL_SaveDatabase(m_szQuery);
 }
